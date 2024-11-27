@@ -1,25 +1,36 @@
-import logo from './logo.svg';
-import './App.css';
+import React, { useContext, useEffect } from 'react';
+import { BrowserRouter as Router, Route, Routes, useNavigate } from 'react-router-dom';
+import { AuthProvider, AuthContext } from './context/AuthProvider'; // Importar AuthContext
+import Login from './components/Login';
+import Home from './components/Home';
+import RequireAuth from './components/RequireAuth';
 
 function App() {
+  const { setAuth } = useContext(AuthContext); // Obtener setAuth desde el contexto
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      setAuth({ accessToken: token });
+      navigate('/home');  // Solo se ejecuta si el token existe
+    }
+  }, [setAuth, navigate]); // Dependencias de useEffect
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Routes>
+      <Route path="/" element={<Login />} />
+      <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
+    </Routes>
   );
 }
 
-export default App;
+export default function AppWithRouter() {
+  return (
+    <Router>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </Router>
+  );
+}
