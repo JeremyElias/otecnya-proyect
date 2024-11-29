@@ -61,7 +61,7 @@ function Home() {
   // Manejar el envío del formulario
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true);  // Activar el estado para bloquear el botón
+    setIsSubmitting(true);
   
     const formData = new FormData();
     formData.append("name", name);
@@ -79,21 +79,23 @@ function Home() {
       });
     
       if (!response.ok) {
-        const errorData = await response.text();  // Cambiar a text() para ver el HTML en caso de error
+        const errorData = await response.json();
         console.error("Error al crear el proyecto:", errorData);
       } else {
-        const data = await response.json();
-        console.log("Proyecto creado:", data);
+        const newProject = await response.json();
+        console.log("Proyecto creado:", newProject);
         
-        // Cerrar el modal después de crear el proyecto
-        setIsModalOpen(false); // Cambiar de `toggleModal()` a `setIsModalOpen(false)` para cerrarlo explícitamente
+        setProjects((prevProjects) => [...prevProjects, newProject]); // Agregar el nuevo proyecto al estado
+        setIsModalOpen(false);
       }
     } catch (error) {
       console.error("Error al enviar la solicitud:", error);
     } finally {
-      setIsSubmitting(false); // Volver a habilitar el botón después de procesar la solicitud
+      setIsSubmitting(false);
     }
   };
+
+  
   if (!auth?.accessToken) {
     return <Navigate to="/" />;
   }

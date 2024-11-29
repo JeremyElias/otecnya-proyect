@@ -4,6 +4,7 @@ import { AuthProvider, AuthContext } from './context/AuthProvider'; // Importar 
 import Login from './components/Login';
 import Home from './components/Home';
 import RequireAuth from './components/RequireAuth';
+import ProjectDetails from './components/projects/ProjectDetails';
 
 function App() {
   const { setAuth } = useContext(AuthContext); // Obtener setAuth desde el contexto
@@ -21,6 +22,7 @@ function App() {
     <Routes>
       <Route path="/" element={<Login />} />
       <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
+      <Route path="/projects/:id" element={<ProjectDetails />} />
     </Routes>
   );
 }

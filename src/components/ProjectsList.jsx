@@ -1,4 +1,11 @@
-function ProjectsList({ projects, setProjects }) {
+import { useNavigate } from 'react-router-dom';
+
+function ProjectsList({ projects }) {
+  const navigate = useNavigate();
+
+  if(!projects || projects.length === 0) {
+    return <p>No hay proyectos disponibles.</p>
+  }
   return (
     <div className="container mx-auto px-8 py-6">
       {/* Verificación si 'projects' es un arreglo y si tiene elementos */}
@@ -24,7 +31,7 @@ function ProjectsList({ projects, setProjects }) {
                 <p className="p-2 text-sm text-muted-foreground">{new Date(project.dateStart).toLocaleDateString()} - {new Date(project.dateEnd).toLocaleDateString()}</p>
               </div>
               <div className="flex justify-end p-2">
-                <a href="#" onClick={() => setProjects((prevProjects) => prevProjects.filter((p) => p.id !== project.id))} className="flex text-black p-2 rounded-md border hover:bg-gray-200 w-full justify-center items-center font-semibold mt-auto">
+                <a key={project.id} onClick={() =>navigate(`/projects/${project.id}`, { state: { project } })} className="flex text-black p-2 rounded-md border hover:bg-gray-200 w-full justify-center items-center font-semibold mt-auto">
                   Ver proyecto
                 </a>
               </div>
