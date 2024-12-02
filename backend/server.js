@@ -3,10 +3,15 @@ const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const mysql = require('mysql2');
-require('dotenv').config(); // Cargar variables de entorno
 const app = express();
 const path = require('path');
 const multer = require('multer');
+const XLSX = require('xlsx');
+require('dotenv').config(); // Cargar variables de entorno
+
+
+const uploadExcel = multer({ dest: 'uploads/' });
+
 
 // Configuración de multer para almacenar las imágenes
 const storage = multer.diskStorage({
@@ -117,6 +122,8 @@ function authenticateToken(req, res, next) {
 app.use(express.json()); // Asegúrate de que Express pueda manejar JSON
 
 // Ruta para crear proyectos, con la carga de archivos mediante multer
+// Ruta estática para acceder a las imágenes
+app.use('/images', express.static(path.join(__dirname, 'public/images')));
 app.post("/api/projects", upload.single('img'), (req, res) => {
   const { name, description, participants, totalParticipants, dateStart, dateEnd } = req.body;
 
@@ -152,11 +159,63 @@ app.get('/api/projects', (req, res) => {
   });
 });
 
+app.post("/api/upload-excel", (req, res) => {
+  const data = req.body.data;
+
+  // Verificar que los datos sean válidos
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    return res.status(400).json({ message: "Datos inválidos o vacíos" });
+  }
+
+  const query = `
+    INSERT INTO ProjectsPeopleData (rut, nombre, respuestas_acertadas, en_proceso, respuestas_erroneas, projectId)
+    VALUES ?
+  `;
+
+  // Mapeamos los datos a un formato que sea compatible con la consulta SQL
+  const values = data.map(item => [
+    item.rut,
+    item.nombre,
+    item.respuestas_acertadas,
+    item.en_proceso ?? null,  // Si `en_proceso` es undefined, lo convertimos a null
+    item.respuestas_erroneas ?? null,  // Lo mismo para `respuestas_erroneas`
+    item.projectId
+  ]);
+
+  // Realizamos la inserción
+  db.query(query, [values], (err, result) => {
+    if (err) {
+      console.error("Error al ejecutar la consulta SQL:", err); // Imprime detalles del error
+      return res.status(500).json({ message: "Error al guardar los datos en la base de datos", error: err.message });
+    }
+    console.log("Resultado de la inserción:", result); // Verifica la respuesta del resultado
+    res.status(201).json({ message: "Datos cargados exitosamente", result });
+  });
+});
+
+app.get('/api/projectsPeopleData/:projectId', (req, res) => {
+  const { projectId } = req.params;
+  const query = 'SELECT * FROM ProjectsPeopleData WHERE projectId = ?';
+
+  db.query(query, [projectId], (err, rows) => {
+    if (err) {
+      console.error('Error al realizar la consulta:', err.message);
+      return res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+  
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'No se encontraron datos para este proyecto.' });
+    }
+  
+    res.status(200).json(rows);
+  });
+});
+
+
+
 // Manejo de solicitudes OPTIONS (preflight)
 app.options('*', cors());  // Permite solicitudes preflight (OPTIONS)
 
-// Ruta estática para acceder a las imágenes
-app.use('/images', express.static(path.join(__dirname, 'public/images')));
 
 // Iniciar el servidor
 const PORT = 5000;

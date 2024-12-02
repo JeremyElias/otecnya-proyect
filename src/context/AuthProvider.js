@@ -9,7 +9,6 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const savedAuth = localStorage.getItem('auth');
-    console.log("Valor recuperado de localStorage:", savedAuth); // Log para depurar
 
     if (savedAuth) {
       setAuth(JSON.parse(savedAuth));

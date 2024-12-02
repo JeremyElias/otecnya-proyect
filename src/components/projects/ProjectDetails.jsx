@@ -1,24 +1,71 @@
+import React, { useState,useContext, useEffect, } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import Nabvar from "../Nabvar";
 import { Separator } from "../ui/separator";
 import { Badge} from "../ui/badge";
 import { Progress} from "../ui/progress";
-import { Input } from "../ui/input";
 import { Calendar } from '../ui/calendar';
-import { Button } from "../ui/button";
-import { CalendarDays, Upload, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { AuthContext } from '../../context/AuthProvider';
+import { CalendarDays, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 
+import TableProjects from './TableProjects';
 
 
 
 function ProjectDetails() {
+    const { auth } = useContext(AuthContext);
   const { id } = useParams();
+  const [ setProject] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const [people, setPeople] = useState([]);
+  const [completed, setCompleted] = useState(0);
+  const [inProgress, setInProgress] = useState(0);
+  const [delayed, setDelayed] = useState(0);
   const location = useLocation();
   const project = location.state?.project;
+  useEffect(() => {
+    async function fetchProjectData() {
+        try {
+            // Obtener los datos del proyecto
+            const projectResponse = await fetch(`http://localhost:5000/api/projects/${id}`);
+            const projectData = await projectResponse.json();
+            setProject(projectData);
 
+            // Obtener las personas asociadas al proyecto
+            const peopleResponse = await fetch(`http://localhost:5000/api/projects/${id}/people`);
+            const peopleData = await peopleResponse.json();
+            setPeople(peopleData);
+
+            // Calcular los estados
+            let completedCount = 0;
+            let inProgressCount = 0;
+            let delayedCount = 0;
+
+            peopleData.forEach(person => {
+                if (person.completed) {
+                    completedCount++;
+                } else if (person.loggedIn) {
+                    inProgressCount++;
+                } else {
+                    delayedCount++;
+                }
+            });
+
+            setCompleted(completedCount);
+            setInProgress(inProgressCount);
+            setDelayed(delayedCount);
+        } catch (error) {
+            console.error('Error al obtener los datos del proyecto:', error);
+        }
+    }
+
+    fetchProjectData();
+}, [id]);
+  
   if (!project) {
     return <p>No hay datos del proyecto. Debes recargar desde la API.</p>;
   }
+
 
   return (
 
@@ -51,34 +98,26 @@ function ProjectDetails() {
                             <div className='rounded-lg border bg-card p-3'>
                                 <div className='flex items-center gap-2'>
                                     <CheckCircle2 className='h-4 w-4 text-green-500' />
-                                    <span className='text-sm font-medium'>12 Completadas</span>
+                                    <span className='text-sm font-medium'>{completed} Completadas</span>
                                 </div>
                             </div>
                             <div className='rounded-lg border bg-card p-3'>
                                 <div className='flex items-center gap-2'>
                                     <Clock className='h-4 w-4 text-orange-500' />
-                                    <span className='text-sm font-medium'>8 En Proceso</span>
+                                    <span className='text-sm font-medium'>{inProgress} En Proceso</span>
                                 </div>
                             </div>
                             <div className='rounded-lg border bg-card p-3'>
                                 <div className='flex items-center gap-2'>
                                     <AlertCircle className='h-4 w-4 text-red-500' />
-                                    <span className='text-sm font-medium'>3 retrasadas</span>
+                                    <span className='text-sm font-medium'>{delayed} retrasadas</span>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <Separator />
-                    <div className='space-y-4'>
-                        <h2 className='text-sm font-medium'>Subir Información</h2>
-                        <div className='flex items-center gap-3'>
-                            <Input type="file" className="flex-1 border-dashed text-sm file:text-sm" accept=".xlsx, .xls" placeholder="Subir Excel" />
-                            <Button size="sm" className="h-9 gap-2">
-                                <Upload className="h-4 w-4" />
-                                <span>Subir Excel</span>
-                            </Button>
-                        </div>
-                    </div>
+
+                    <TableProjects projectId={id} />
+
                 </div>
                 <div className='space-y-6'>
                     <div className='rounded-lg border bg-card'>
@@ -115,7 +154,7 @@ function ProjectDetails() {
                             <h2 className='text-sm font-medium'>Calendario</h2>
                         </div>
                         <div className='p-4'>
-                            <Calendar mode="single" date={new Date( project.dateStart)} className="rounded-md border" />
+                            <Calendar mode="single" date={new Date( project.dateStart)} className="rounded-md border "   />
                         </div>
                     </div>
                 </div>
