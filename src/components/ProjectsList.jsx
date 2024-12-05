@@ -1,7 +1,42 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from 'react-router-dom';
 
 function ProjectsList({ projects }) {
   const navigate = useNavigate();
+  const [participantsCounts, setParticipantsCounts] = useState({}); // Almacena el conteo por projectId
+
+  useEffect(() => {
+    // Función para obtener el conteo de participantes
+    const fetchParticipantsCounts = async () => {
+      const counts = {};
+      for (const project of projects) {
+        try {
+          const response = await fetch(`http://localhost:5000/api/countPeople/${project.id}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            counts[project.id] = data[0]?.['count(rut)'] || 0; // Almacena el conteo en el objeto
+          } else {
+            console.error(`Error al obtener conteo para el proyecto ${project.id}`);
+            counts[project.id] = 0; // Maneja errores devolviendo 0
+          }
+        } catch (error) {
+          console.error(`Error al obtener el conteo para el proyecto ${project.id}:`, error);
+          counts[project.id] = 0; // Manejo de errores
+        }
+      }
+      setParticipantsCounts(counts); // Actualiza el estado con los conteos
+    };
+
+    if (projects?.length > 0) {
+      fetchParticipantsCounts();
+    }
+  }, [projects]);
 
   if(!projects || projects.length === 0) {
     return <p>No hay proyectos disponibles.</p>
@@ -25,7 +60,7 @@ function ProjectsList({ projects }) {
                 <p className="text-sm text-muted-foreground">{project.description}</p>
               </div>
               <div className="ps-3">
-                <p className="p-1 text-xs text-muted-foreground rounded bg-slate-200 inline-block">{project.participants} / {project.totalParticipants} - participantes</p>
+                <p className="p-1 text-xs text-muted-foreground rounded bg-slate-200 inline-block">{participantsCounts[project.id] !== undefined ? `${participantsCounts[project.id]} / ${project.totalParticipants} - participantes `: 'Cargando...'}</p>
               </div>
               <div>
                 <p className="p-2 text-sm text-muted-foreground">{new Date(project.dateStart).toLocaleDateString()} - {new Date(project.dateEnd).toLocaleDateString()}</p>

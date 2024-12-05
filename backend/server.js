@@ -125,28 +125,28 @@ app.use(express.json()); // Asegúrate de que Express pueda manejar JSON
 // Ruta estática para acceder a las imágenes
 app.use('/images', express.static(path.join(__dirname, 'public/images')));
 app.post("/api/projects", upload.single('img'), (req, res) => {
-  const { name, description, participants, totalParticipants, dateStart, dateEnd } = req.body;
+  const { name, description, totalParticipants , total_questions, dateStart, dateEnd } = req.body;
 
-  // Verificar que los campos estén presentes
-  if (!name || !description || !participants || !totalParticipants || !dateStart || !dateEnd || !req.file) {
+  // Verificar campos
+  if (!name || !description || !totalParticipants || !total_questions || !dateStart || !dateEnd || !req.file) {
+    console.error("Datos faltantes:", req.body, req.file);
     return res.status(400).json({ message: "Faltan datos en la solicitud" });
   }
 
-  const imgPath = `/images/${req.file.filename}`; // Ruta donde se guardará la imagen
+  const imgPath = `/images/${req.file.filename}`;
 
-  // Asegúrate de que 'query' esté bien definido
-  const query = "INSERT INTO projects (name, description, participants, totalParticipants, dateStart, dateEnd, img) VALUES (?, ?, ?, ?, ?, ?, ?)";
+  const query = "INSERT INTO projects (name, description, totalParticipants, total_questions, dateStart, dateEnd, img) VALUES (?, ?, ?, ?, ?, ?, ?)";
 
-  // Ejecutar la consulta SQL
-  db.query(query, [name, description, participants, totalParticipants, dateStart, dateEnd, imgPath], (err, result) => {
+  db.query(query, [name, description, totalParticipants, total_questions, dateStart, dateEnd, imgPath], (err, result) => {
     if (err) {
       console.error("Error en la consulta SQL:", err);
       return res.status(500).json({ message: "Error al guardar el proyecto en la base de datos", error: err.message });
     }
-    console.log("Resultado de la inserción:", result);  // Verifica la respuesta del resultado
+    console.log("Resultado de la inserción:", result);
     res.status(201).json({ message: "Proyecto creado exitosamente", result });
   });
 });
+
 
 app.get('/api/projects', (req, res) => {
   const query = 'SELECT * FROM projects';
@@ -159,43 +159,84 @@ app.get('/api/projects', (req, res) => {
   });
 });
 
-app.post("/api/upload-excel", (req, res) => {
-  const data = req.body.data;
+app.post('/api/upload-excel', (req, res) => {
+  const { data, projectId, totalQuestions } = req.body;
 
-  // Verificar que los datos sean válidos
-  if (!data || !Array.isArray(data) || data.length === 0) {
-    return res.status(400).json({ message: "Datos inválidos o vacíos" });
+  console.log('Datos recibidos:', req.body);
+
+  if (!data || !projectId || !totalQuestions) {
+    return res.status(400).json({ error: 'Faltan datos o projectId' });
   }
 
-  const query = `
-    INSERT INTO ProjectsPeopleData (rut, nombre, respuestas_acertadas, en_proceso, respuestas_erroneas, projectId)
-    VALUES ?
-  `;
+  // Aquí puedes realizar las inserciones en la base de datos. Por ejemplo:
+  const query = 'INSERT INTO projectsPeopleData (rut, nombre, respuestas_acertadas, en_proceso, respuestas_erroneas, projectId) VALUES ?';
 
-  // Mapeamos los datos a un formato que sea compatible con la consulta SQL
+  // Formateamos los datos en un arreglo para la consulta SQL
   const values = data.map(item => [
     item.rut,
     item.nombre,
-    item.respuestas_acertadas,
-    item.en_proceso ?? null,  // Si `en_proceso` es undefined, lo convertimos a null
-    item.respuestas_erroneas ?? null,  // Lo mismo para `respuestas_erroneas`
-    item.projectId
+    item.respuestas_acertadas || 0, // Si no hay respuesta acertada, asumimos 0
+    totalQuestions,  // Asignamos el valor totalQuestions a en_proceso
+    item.respuestas_erroneas || 0, // Si no hay respuestas erróneas, asumimos 0
+    projectId
   ]);
 
-  // Realizamos la inserción
+  // Ejecutar la consulta para insertar los datos en la tabla projectsPeopleData
   db.query(query, [values], (err, result) => {
     if (err) {
-      console.error("Error al ejecutar la consulta SQL:", err); // Imprime detalles del error
-      return res.status(500).json({ message: "Error al guardar los datos en la base de datos", error: err.message });
+      console.error('Error al insertar los datos:', err.message);
+      return res.status(500).json({ error: 'Error al insertar los datos' });
     }
-    console.log("Resultado de la inserción:", result); // Verifica la respuesta del resultado
-    res.status(201).json({ message: "Datos cargados exitosamente", result });
+
+    res.status(200).json({ message: 'Datos subidos con éxito', result });
   });
 });
+
+
 
 app.get('/api/projectsPeopleData/:projectId', (req, res) => {
   const { projectId } = req.params;
   const query = 'SELECT * FROM ProjectsPeopleData WHERE projectId = ?';
+
+  db.query(query, [projectId], (err, rows) => {
+    if (err) {
+      console.error('Error al realizar la consulta:', err.message);
+      return res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+  
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'No se encontraron datos para este proyecto.' });
+    }
+  
+    res.status(200).json(rows);
+  });
+});
+
+//Traemos el valor de total_questions por id
+app.get('/api/projects/totalQuestions/:projectId', (req, res) => {
+  const { projectId } = req.params;
+  const query = 'SELECT total_questions FROM projects WHERE id = ?';
+
+  db.query(query, [projectId], (err, rows) => {
+    if (err) {
+      console.error('Error al realizar la consulta:', err.message);
+      return res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+  
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'No se encontraron datos para este proyecto.' });
+    }
+  
+    // Responder solo con el valor de total_questions
+    res.status(200).json({ totalQuestions: rows[0].total_questions });
+  });
+});
+
+
+
+app.get('/api/countPeople/:projectId', (req, res) => {
+  const { projectId } = req.params;
+  const query = 'Select count(rut) from ProjectsPeopleData where projectId = ?';
 
   db.query(query, [projectId], (err, rows) => {
     if (err) {

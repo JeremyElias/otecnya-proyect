@@ -6,7 +6,7 @@ import { Badge} from "../ui/badge";
 import { Progress} from "../ui/progress";
 import { Calendar } from '../ui/calendar';
 import { AuthContext } from '../../context/AuthProvider';
-import { CalendarDays, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { CalendarDays, Clock, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
 
 import TableProjects from './TableProjects';
 
@@ -83,8 +83,8 @@ function ProjectDetails() {
                             </div>
                             <p className='text-sm text-muted-foreground'>{project.description}</p>
                         </div>
-                        <div className='relative aspect-square w-32 overflow-hidden rounded-lg border bg-muted/10'>
-                            <img src={`http://localhost:5000${project.img}`} alt={project.name} width={128} height={128} className='object-cover' />
+                        <div className='relative  w-24 h-24 shrink-0 overflow-hidden rounded-lg border'>
+                            <img src={`http://localhost:5000${project.img}`} alt={project.name} className='object-cover' />
                         </div>
                     </div>
                     <Separator />

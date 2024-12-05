@@ -13,8 +13,8 @@ function Home() {
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [participants, setParticipants] = useState('');
   const [totalParticipants, setTotalParticipants] = useState('');
+  const [total_questions, setTotalQuestions] = useState('');
   const [dateStart, setDateStart] = useState('');
   const [dateEnd, setDateEnd] = useState('');
   const [imgFile, setImgFile] = useState(null);
@@ -66,26 +66,27 @@ function Home() {
     const formData = new FormData();
     formData.append("name", name);
     formData.append("description", description);
-    formData.append("participants", participants);
     formData.append("totalParticipants", totalParticipants);
+    formData.append("total_questions", total_questions);
     formData.append("dateStart", dateStart);
     formData.append("dateEnd", dateEnd);
     formData.append("img", imgFile);
+  
+    console.log("Enviando datos:", { name, description, totalParticipants, total_questions, dateStart, dateEnd, imgFile });
   
     try {
       const response = await fetch('http://localhost:5000/api/projects', {
         method: 'POST',
         body: formData,
       });
-    
+  
       if (!response.ok) {
         const errorData = await response.json();
         console.error("Error al crear el proyecto:", errorData);
       } else {
         const newProject = await response.json();
         console.log("Proyecto creado:", newProject);
-        
-        setProjects((prevProjects) => [...prevProjects, newProject]); // Agregar el nuevo proyecto al estado
+        setProjects((prevProjects) => [...prevProjects, newProject]);
         setIsModalOpen(false);
       }
     } catch (error) {
@@ -150,18 +151,6 @@ function Home() {
               {/* Participantes */}
               <div className="flex gap-2">
                 <div className="w-1/2">
-                  <label htmlFor="project-participants" className="block text-sm font-medium text-gray-700">Participantes</label>
-                  <input 
-                    type="number" 
-                    id="project-participants" 
-                    name="participants" 
-                    value={participants}
-                    onChange={(e) => setParticipants(e.target.value)}
-                    required 
-                    className="mt-1 block w-full rounded-md border border-gray-800 shadow-sm focus:border-black focus:ring-black sm:text-sm" 
-                    />
-                </div>
-                <div className="w-1/2">
                   <label htmlFor="project-total-participants" className="block text-sm font-medium text-gray-700">Total de participantes</label>
                   <input 
                     type="number" 
@@ -173,6 +162,18 @@ function Home() {
                     className="mt-1 block w-full rounded-md border border-gray-800 shadow-sm focus:border-black focus:ring-black sm:text-sm" 
                   />
                 </div>
+                <div className="w-1/2">
+                    <label htmlFor="total_questions" className="block text-sm font-medium text-gray-700">Total de preguntas</label>
+                    <input 
+                      type="number" 
+                      id="total_questions" 
+                      name="total_questions" 
+                      value={total_questions}
+                      onChange={(e) => setTotalQuestions(e.target.value)}
+                      required 
+                      className="mt-1 block w-full rounded-md border border-gray-800 shadow-sm focus:border-black focus:ring-black sm:text-sm" 
+                    />
+                  </div>
               </div>
 
               {/* Fechas */}
