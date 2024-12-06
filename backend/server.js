@@ -159,6 +159,27 @@ app.get('/api/projects', (req, res) => {
   });
 });
 
+app.get('/api/projects/:id', (req, res) => {
+  const { id } = req.params;
+
+  // Consulta SQL para obtener el proyecto por ID
+  const query = 'SELECT * FROM Projects WHERE id = ?';
+
+  db.query(query, [id], (err, result) => {
+    if (err) {
+      console.error('Error al obtener el proyecto:', err);
+      return res.status(500).json({ message: 'Error al obtener el proyecto' });
+    }
+
+    if (result.length === 0) {
+      return res.status(404).json({ message: 'Proyecto no encontrado' });
+    }
+
+    res.json(result[0]); // Devuelve el primer proyecto encontrado
+  });
+});
+
+
 app.post('/api/upload-excel', (req, res) => {
   const { data, projectId, totalQuestions } = req.body;
 
@@ -251,6 +272,188 @@ app.get('/api/countPeople/:projectId', (req, res) => {
     res.status(200).json(rows);
   });
 });
+
+
+//Consulta para ver el estado de los participantes por proyecto
+app.get('/api/estado-participantes/:projectId', (req, res) => {
+  const projectId = req.params.projectId; // Obtenemos el projectId de los parámetros de la URL
+
+  // Consulta SQL para obtener el conteo de participantes por estado
+  const query = `
+      SELECT 
+          estado,
+          COUNT(*) AS cantidad_participantes
+      FROM (
+          SELECT 
+              CASE
+                  WHEN pd.respuestas_acertadas = p.total_questions THEN 'Completado'
+                  WHEN CURDATE() > p.dateEnd AND pd.respuestas_acertadas < p.total_questions THEN 'Retrasado'
+                  ELSE 'En Proceso'
+              END AS estado
+          FROM 
+              projectsPeopleData pd
+          INNER JOIN 
+              projects p ON pd.projectId = p.id
+          WHERE 
+              pd.projectId = ?
+      ) AS estados
+      GROUP BY 
+          estado;
+  `;
+
+  // Ejecutar la consulta
+  db.execute(query, [projectId], (err, results) => {
+      if (err) {
+          console.error('Error al ejecutar la consulta:', err);
+          return res.status(500).json({ error: 'Error al obtener los datos' });
+      }
+
+      // Responder con los resultados
+      return res.status(200).json(results);
+  });
+});
+
+
+
+
+// Inyecciones SQL PARA APP UNITY
+app.put('/api/update-participants', (req, res) => {
+  const participants = req.body; // Esto puede ser un solo objeto o un arreglo
+
+  // Verificar si es un arreglo o un solo objeto
+  if (Array.isArray(participants)) {
+      // Si es un arreglo de participantes, actualizamos cada uno
+      participants.forEach(participant => {
+          const { projectId, participantId, respuestasAcertadas, respuestasErroneas } = participant;
+
+          // Validación de datos
+          if (!projectId || !participantId || respuestasAcertadas === undefined || respuestasErroneas === undefined) {
+              return res.status(400).json({ error: 'Faltan datos requeridos en uno de los participantes' });
+          }
+
+          // Consulta SQL para actualizar los datos de cada participante
+          const query = `
+              UPDATE projectsPeopleData pd
+              INNER JOIN projects p ON pd.projectId = p.id
+              SET 
+                  pd.respuestas_acertadas = ?, 
+                  pd.respuestas_erroneas = ?, 
+                  pd.en_proceso = p.total_questions - (? + ?)
+              WHERE 
+                  pd.projectId = ? AND 
+                  pd.id = ?;
+          `;
+
+          // Ejecutar la consulta
+          db.query(query, 
+              [respuestasAcertadas, respuestasErroneas, respuestasAcertadas, respuestasErroneas, projectId, participantId],
+              (err, result) => {
+                  if (err) {
+                      console.error('Error al actualizar los datos:', err);
+                      return res.status(500).json({ error: 'Error al actualizar los datos' });
+                  }
+              }
+          );
+      });
+
+      // Después de actualizar todos los participantes, actualizamos el estado de todos
+      const updateStatusQuery = `
+          UPDATE projectsPeopleData pd
+          INNER JOIN projects p ON pd.projectId = p.id
+          SET pd.estado = CASE
+              WHEN pd.respuestas_acertadas = p.total_questions THEN 'Completado'
+              WHEN CURDATE() > p.dateEnd AND pd.respuestas_acertadas < p.total_questions THEN 'Retrasado'
+              ELSE 'En Proceso'
+          END
+          WHERE pd.projectId = ?;
+      `;
+
+      // Ejecutar la consulta para actualizar el estado de todos los participantes del proyecto
+      db.query(updateStatusQuery, [participants[0].projectId], (err, result) => {
+          if (err) {
+              console.error('Error al actualizar el estado de los participantes:', err);
+              return res.status(500).json({ error: 'Error al actualizar el estado de los participantes' });
+          }
+
+          // Responder con éxito
+          res.status(200).json({ message: 'Datos y estados actualizados con éxito' });
+      });
+  } else if (typeof participants === 'object') {
+      // Si es un solo objeto, lo actualizamos directamente
+      const { projectId, participantId, respuestasAcertadas, respuestasErroneas } = participants;
+
+      // Validación de datos
+      if (!projectId || !participantId || respuestasAcertadas === undefined || respuestasErroneas === undefined) {
+          return res.status(400).json({ error: 'Faltan datos requeridos' });
+      }
+
+      // Consulta SQL para actualizar los datos del participante
+      const query = `
+          UPDATE projectsPeopleData pd
+          INNER JOIN projects p ON pd.projectId = p.id
+          SET 
+              pd.respuestas_acertadas = ?, 
+              pd.respuestas_erroneas = ?, 
+              pd.en_proceso = p.total_questions - (? + ?)
+          WHERE 
+              pd.projectId = ? AND 
+              pd.id = ?;
+      `;
+
+      // Ejecutar la consulta
+      db.query(query, 
+          [respuestasAcertadas, respuestasErroneas, respuestasAcertadas, respuestasErroneas, projectId, participantId],
+          (err, result) => {
+              if (err) {
+                  console.error('Error al actualizar los datos:', err);
+                  return res.status(500).json({ error: 'Error al actualizar los datos' });
+              }
+          }
+      );
+
+      // Después de actualizar los datos del participante, actualizamos el estado de todos
+      const updateStatusQuery = `
+          UPDATE projectsPeopleData pd
+          INNER JOIN projects p ON pd.projectId = p.id
+          SET pd.estado = CASE
+              WHEN pd.respuestas_acertadas = p.total_questions THEN 'Completado'
+              WHEN CURDATE() > p.dateEnd AND pd.respuestas_acertadas < p.total_questions THEN 'Retrasado'
+              ELSE 'En Proceso'
+          END
+          WHERE pd.projectId = ?;
+      `;
+
+      // Ejecutar la consulta para actualizar el estado de todos los participantes del proyecto
+      db.query(updateStatusQuery, [projectId], (err, result) => {
+          if (err) {
+              console.error('Error al actualizar el estado de los participantes:', err);
+              return res.status(500).json({ error: 'Error al actualizar el estado de los participantes' });
+          }
+
+          // Responder con éxito
+          res.status(200).json({ message: 'Datos y estados actualizados con éxito' });
+      });
+  } else {
+      // Si los datos no son válidos
+      return res.status(400).json({ error: 'Datos inválidos' });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -15,57 +15,53 @@ import TableProjects from './TableProjects';
 function ProjectDetails() {
     const { auth } = useContext(AuthContext);
   const { id } = useParams();
-  const [ setProject] = useState(null);
-  const [tasks, setTasks] = useState([]);
-  const [people, setPeople] = useState([]);
+  const [project, setProject] = useState(null); // Cambia esta línea
   const [completed, setCompleted] = useState(0);
   const [inProgress, setInProgress] = useState(0);
   const [delayed, setDelayed] = useState(0);
   const location = useLocation();
-  const project = location.state?.project;
   useEffect(() => {
     async function fetchProjectData() {
-        try {
-            // Obtener los datos del proyecto
-            const projectResponse = await fetch(`http://localhost:5000/api/projects/${id}`);
-            const projectData = await projectResponse.json();
-            setProject(projectData);
-
-            // Obtener las personas asociadas al proyecto
-            const peopleResponse = await fetch(`http://localhost:5000/api/projects/${id}/people`);
-            const peopleData = await peopleResponse.json();
-            setPeople(peopleData);
-
-            // Calcular los estados
-            let completedCount = 0;
-            let inProgressCount = 0;
-            let delayedCount = 0;
-
-            peopleData.forEach(person => {
-                if (person.completed) {
-                    completedCount++;
-                } else if (person.loggedIn) {
-                    inProgressCount++;
-                } else {
-                    delayedCount++;
-                }
-            });
-
-            setCompleted(completedCount);
-            setInProgress(inProgressCount);
-            setDelayed(delayedCount);
-        } catch (error) {
-            console.error('Error al obtener los datos del proyecto:', error);
+      try {
+        const projectResponse = await fetch(`http://localhost:5000/api/projects/${id}`);
+        if (!projectResponse.ok) {
+          throw new Error('Error al obtener el proyecto');
         }
+        const projectData = await projectResponse.json();
+        console.log("Project Data:", projectData);  // Verifica los datos
+   
+        setProject(projectData);
+   
+        const statusResponse = await fetch(`http://localhost:5000/api/estado-participantes/${id}`);
+        if (!statusResponse.ok) {
+          throw new Error('Error al obtener el estado de los participantes');
+        }
+        const statusData = await statusResponse.json();
+        console.log("Status Data:", statusData);  // Verifica la estructura de los datos
+   
+        // Asignar los valores de estado a las variables correspondientes
+        const completedStatus = statusData.find(item => item.estado === 'Completado');
+        const inProgressStatus = statusData.find(item => item.estado === 'En Proceso');
+        const delayedStatus = statusData.find(item => item.estado === 'Retrasado');
+   
+        setCompleted(completedStatus ? completedStatus.cantidad_participantes : 0);
+        setInProgress(inProgressStatus ? inProgressStatus.cantidad_participantes : 0);
+        setDelayed(delayedStatus ? delayedStatus.cantidad_participantes : 0);
+   
+      } catch (error) {
+        console.error('Error al obtener los datos:', error);
+      }
+    }
+   
+    fetchProjectData();
+
+  }, [id]);
+    if (!project || typeof project !== 'object') {
+    return <p>No hay datos del proyecto. Debes recargar desde la API.</p>;
     }
 
-    fetchProjectData();
-}, [id]);
-  
-  if (!project) {
-    return <p>No hay datos del proyecto. Debes recargar desde la API.</p>;
-  }
-
+  // tengo el total_participantes y  este deberia ser el en proceso, cuando uno de los participantes completa las 30 preguntas pasa a estar completado y si la persona no a completado las 30 preguntas en la fecha destinada de termino del proyecto pasaria a estar retrazada 
+  // si el proyecto tiene 30 preguntas la persona contesta 15 entonces la tabla deberia actualizarse a completas 15 y deberia restarle 15 al total de preguntas y si la persona se equivoca en algunas preguntas deberia actualzarse a respuestas erroneas
 
   return (
 
