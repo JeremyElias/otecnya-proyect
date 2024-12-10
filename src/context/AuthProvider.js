@@ -24,12 +24,17 @@ export const AuthProvider = ({ children }) => {
     }
   }, [auth]);
 
+  const logout = () => {
+    setAuth(null);
+    localStorage.removeItem('auth');
+  };
+
   if (loading) {
     return <div>Loading...</div>; // Muestra un mensaje de carga mientras se verifica el estado de autenticación
   }
 
   return (
-    <AuthContext.Provider value={{ auth, setAuth }}>
+    <AuthContext.Provider value={{ auth, setAuth, logout }}>
       {children}
     </AuthContext.Provider>
   );

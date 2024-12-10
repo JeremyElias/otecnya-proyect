@@ -25,12 +25,11 @@ function Home() {
   };
 
   // Cargar proyectos al cargar la página
-  useEffect(() => {
     const fetchProjects = async () => {
       if (!auth?.accessToken) {
         return;
       }
-
+  
       try {
         const response = await fetch('http://localhost:5000/api/projects', {
           method: 'GET',
@@ -39,24 +38,26 @@ function Home() {
             'Content-Type': 'application/json',
           },
         });
-
+  
         if (!response.ok) {
           const errorData = await response.json();
           console.error(`Error al obtener proyectos: ${errorData.message}`);
           return;
         }
-
+  
         const data = await response.json();
         setProjects(data);
       } catch (error) {
         console.error("Error al cargar proyectos:", error);
       }
     };
-
-    if (auth?.accessToken) {
-      fetchProjects();
-    }
-  }, [auth]); // Dependencia solo de auth para recargar cuando cambia
+  
+    // Llamar a fetchProjects al cargar la página
+    useEffect(() => {
+      if (auth?.accessToken) {
+        fetchProjects();
+      }
+    }, [auth]);
 
   // Manejar el envío del formulario
   const handleSubmit = async (e) => {
@@ -84,10 +85,9 @@ function Home() {
         const errorData = await response.json();
         console.error("Error al crear el proyecto:", errorData);
       } else {
-        const newProject = await response.json();
-        console.log("Proyecto creado:", newProject);
-        setProjects((prevProjects) => [...prevProjects, newProject]);
-        setIsModalOpen(false);
+        console.log("Proyecto creado exitosamente");
+        await fetchProjects(); // Recargar proyectos tras la creación
+        setIsModalOpen(false); // Cerrar el modal
       }
     } catch (error) {
       console.error("Error al enviar la solicitud:", error);

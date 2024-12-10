@@ -1,33 +1,37 @@
-import React from "react";
+import React, { useContext } from "react";
+import { AuthContext } from "../context/AuthProvider"; // Asegúrate de que la ruta sea correcta
+import { useNavigate } from "react-router-dom";
 
 export function Navbar() {
+  const { logout } = useContext(AuthContext);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout(); // Llama a la función para cerrar sesión
+    navigate("/login"); // Redirige al login
+  };
+
   return (
     <nav className="border-b bg-gray-950 shadow">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <a href="http://localhost:3000/home" className="text-xl font-bold text-white">
+        <a href="/home" className="text-xl font-bold text-white">
           Dashboard
         </a>
 
         {/* Navigation Links */}
         <div className="hidden space-x-6 lg:flex">
           <a
-            href="#"
+            href="/home"
             className="text-sm font-medium text-white hover:text-gray-300 hover:border-b"
           >
             Inicio
           </a>
-          <a
-            href="#"
-            className="text-sm font-medium text-white hover:text-gray-300 hover:border-b"
-          >
-            Perfil
-          </a>
-          <a
-            href="#"
+          <button
+            onClick={handleLogout}
             className="text-sm font-medium text-red-500 hover:text-red-400 hover:border-b"
           >
             Cerrar sesión
-          </a>
+          </button>
         </div>
 
         {/* Mobile Menu (Hamburger Icon) */}
